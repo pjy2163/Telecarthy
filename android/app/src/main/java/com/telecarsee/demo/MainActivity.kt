@@ -16,8 +16,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -142,7 +144,7 @@ class MainActivity : ComponentActivity() {
         mediaJob=lifecycleScope.launch {
             try {
                 if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED) throw IllegalStateException("microphone permission")
-                androidTts?.stop();pleosTts?.stop()
+                stopSpeech()
                 if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED) throw IllegalStateException("audio focus denied")
                 val r=LiveKit.create(applicationContext)
                 // The app owns the focus request; a second SDK request would revoke it.
@@ -156,7 +158,7 @@ class MainActivity : ComponentActivity() {
                 r.localParticipant.setMicrophoneEnabled(true)
                 muted=false;send("connected")
             } catch(c:CancellationException) { throw c }
-            catch(error:Exception) { android.util.Log.e("TelecarDemo","Media setup failed: ${error.javaClass.simpleName}");send("media_error"); clearMedia(); stage="ended"; message="마이크와 음성 서버 연결을 확인해주세요." }
+            catch(error:Exception) { android.util.Log.e("TelecarDemo","Media setup failed: ${error.javaClass.simpleName}",error);send("media_error"); clearMedia(); stage="ended"; message="마이크와 음성 서버 연결을 확인해주세요." }
         }
     }
     private fun clearMedia() {
@@ -192,14 +194,27 @@ class MainActivity : ComponentActivity() {
     private fun setupSpeech() {
         voiceStatus=if(SpeechRecognizer.isRecognitionAvailable(this)) "Android 음성 제어 · Gleo 미연동" else "음성 제어 미지원 · 터치로 시연"
         androidTts=android.speech.tts.TextToSpeech(this) { status -> if(status==android.speech.tts.TextToSpeech.SUCCESS) { androidTts?.language=Locale.KOREA } }
+        if(checkSelfPermission("pleos.car.permission.TTS_SERVICE")!=PackageManager.PERMISSION_GRANTED) {
+            ttsStatus="Pleos TTS 미연결 · Android 안내음"
+            return
+        }
         try {
             val t=ai.pleos.playground.tts.TextToSpeech(applicationContext,ai.pleos.playground.tts.constant.Mode.ON_DEVICE)
             pleosTts=t
             t.initialize(object:ai.pleos.playground.tts.listener.OnInitializeListener {
-                override fun onSuccess() { lifecycleScope.launch { ttsReady=true;ttsStatus="Pleos TTS 연결됨"; t.setLocale(Locale.KOREA) } }
-                override fun onFailure(errorType:ai.pleos.playground.tts.constant.ErrorType) { lifecycleScope.launch { ttsStatus="Pleos TTS 미연결 · Android 안내음" } }
+                override fun onSuccess() { lifecycleScope.launch {
+                    runCatching { t.setLocale(Locale.KOREA) }.onSuccess { ttsReady=true;ttsStatus="Pleos TTS 연결됨" }
+                        .onFailure { ttsReady=false;ttsStatus="Pleos TTS 미연결 · Android 안내음" }
+                } }
+                override fun onFailure(errorType:ai.pleos.playground.tts.constant.ErrorType) { lifecycleScope.launch { ttsReady=false;ttsStatus="Pleos TTS 미연결 · Android 안내음" } }
             })
-        } catch(_:Throwable) { ttsStatus="Pleos TTS 미연결 · Android 안내음" }
+        } catch(_:Throwable) { ttsReady=false;pleosTts=null;ttsStatus="Pleos TTS 미연결 · Android 안내음" }
+    }
+    private fun stopSpeech() {
+        runCatching { androidTts?.stop() }
+        if(ttsReady) runCatching { pleosTts?.stop() }.onFailure {
+            ttsReady=false;ttsStatus="Pleos TTS 미연결 · Android 안내음"
+        }
     }
     private fun speak(text:String) {
         // Do not interrupt a real conversation with state announcements.
@@ -213,7 +228,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             restoreMicAfterRecognition=stage=="in_call" && !muted
             if(restoreMicAfterRecognition) room?.localParticipant?.setMicrophoneEnabled(false)
-            androidTts?.stop();pleosTts?.stop()
+            stopSpeech()
             recognizer?.destroy();recognizer=SpeechRecognizer.createSpeechRecognizer(this@MainActivity)
             recognizer?.setRecognitionListener(object:RecognitionListener {
                 override fun onReadyForSpeech(p:Bundle?) { listening=true }
@@ -243,55 +258,72 @@ class MainActivity : ComponentActivity() {
     private fun restoreMic() { if(restoreMicAfterRecognition) lifecycleScope.launch { runCatching { room?.localParticipant?.setMicrophoneEnabled(true) };restoreMicAfterRecognition=false } }
 
     @Composable private fun DemoScreen() {
-        BoxWithConstraints(Modifier.fillMaxSize().background(Bg).padding(24.dp)) {
+        BoxWithConstraints(Modifier.fillMaxSize().background(Bg)) {
+            val compact=maxHeight<500.dp || maxWidth<600.dp
             val large=maxWidth>1100.dp
-            val titleSize=if(large) 44.sp else 30.sp
-            Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+            val showRadar=maxWidth>=600.dp
+            val titleSize=if(compact) 24.sp else if(large) 44.sp else 30.sp
+            Column(Modifier.fillMaxSize().padding(if(compact) 12.dp else 24.dp),verticalArrangement=Arrangement.spacedBy(if(compact) 6.dp else 14.dp)) {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                    Text("텔레",fontSize=27.sp,fontWeight=FontWeight.Bold,color=Color.White)
-                    Text("CAR",fontSize=27.sp,fontWeight=FontWeight.Bold,color=Mint)
-                    Text("시",fontSize=27.sp,fontWeight=FontWeight.Bold,color=Color.White)
-                    Spacer(Modifier.width(18.dp))
-                    Text("DEMO · 가상 위치 / 실제 음성",color=Mint,fontSize=14.sp)
+                    val logoSize=if(compact) 20.sp else 27.sp
+                    Text("텔레",fontSize=logoSize,fontWeight=FontWeight.Bold,color=Color.White)
+                    Text("CAR",fontSize=logoSize,fontWeight=FontWeight.Bold,color=Mint)
+                    Text("시",fontSize=logoSize,fontWeight=FontWeight.Bold,color=Color.White)
+                    if(showRadar) {
+                        Spacer(Modifier.width(if(compact) 12.dp else 18.dp))
+                        Text("DEMO · 가상 위치 / 실제 음성",color=Mint,fontSize=if(compact) 11.sp else 14.sp)
+                    }
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick={if(stage !in listOf("in_call","connecting","incoming","outgoing"))settings=true}) { Text("차량 $profile · 설정",color=Soft,fontSize=18.sp) }
+                    TextButton(onClick={if(stage !in listOf("in_call","connecting","incoming","outgoing"))settings=true}) { Text("차량 $profile · 설정",color=Soft,fontSize=if(compact) 14.sp else 18.sp) }
                 }
                 HorizontalDivider(color=Color(0xFF304454))
-                Row(Modifier.weight(1f).fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(32.dp)) {
-                    Box(Modifier.weight(.38f).fillMaxHeight(),contentAlignment=Alignment.Center) { Radar(stage) }
-                    Column(Modifier.weight(.62f),verticalArrangement=Arrangement.spacedBy(18.dp)) {
-                        Text(when(stage){"offline"->"서버 연결 중";"outgoing"->"연결 응답을\n기다리고 있어요";"incoming"->"주변 운전자에게서\n연결 요청이 왔어요";"connecting"->"음성을 연결하고 있어요";"in_call"->"주변 운전자와 대화 중";"ended"->"대화 대기";else->"주변 운전자와 연결"},fontSize=titleSize,lineHeight=titleSize*1.25,fontWeight=FontWeight.Bold,color=Color.White)
-                        Text(if(stage=="in_call") String.format(Locale.US,"%02d:%02d",seconds/60,seconds%60) else message,color=Soft,fontSize=if(large) 25.sp else 18.sp)
-                        if(stage in listOf("ready","ended")) {
-                            Text("반경 500m · 같은 도로·방향 · $nearby 명 대화 가능",color=Mint,fontSize=18.sp)
-                            Action("주변 차량 연결",onClick={requestCall()})
-                            Row(verticalAlignment=Alignment.CenterVertically) { Switch(checked=available,onCheckedChange={send("available"){e->e.put("value",it)}});Spacer(Modifier.width(12.dp));Text("대화 요청 받기",color=Soft,fontSize=18.sp) }
+                Row(Modifier.weight(1f).fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(compact) 16.dp else 32.dp)) {
+                    if(showRadar) Box(Modifier.weight(if(compact) .28f else .38f).fillMaxHeight(),contentAlignment=Alignment.Center) {
+                        Radar(stage,if(compact) Modifier.size(120.dp) else Modifier.fillMaxWidth())
+                    }
+                    Column(Modifier.weight(1f).fillMaxHeight(),verticalArrangement=Arrangement.spacedBy(if(compact) 6.dp else 18.dp)) {
+                        // Keep call controls visible on short phone screens; only the text scrolls.
+                        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(if(compact) 6.dp else 18.dp)) {
+                            Text(when(stage){"offline"->"서버 연결 중";"outgoing"->"연결 응답을\n기다리고 있어요";"incoming"->"주변 운전자에게서\n연결 요청이 왔어요";"connecting"->"음성을 연결하고 있어요";"in_call"->"주변 운전자와 대화 중";"ended"->"대화 대기";else->"주변 운전자와 연결"},fontSize=titleSize,lineHeight=titleSize*1.25,fontWeight=FontWeight.Bold,color=Color.White)
+                            Text(if(stage=="in_call") String.format(Locale.US,"%02d:%02d",seconds/60,seconds%60) else message,color=Soft,fontSize=if(compact) 14.sp else if(large) 25.sp else 18.sp)
+                            if(stage in listOf("ready","ended")) Text("반경 500m · 같은 도로·방향 · $nearby 명 대화 가능",color=Mint,fontSize=if(compact) 14.sp else 18.sp)
                         }
-                        if(stage=="incoming") Row(horizontalArrangement=Arrangement.spacedBy(14.dp)) {
-                            Action("거절",Modifier.weight(1f),Panel){send("decline")};Action("연결",Modifier.weight(1f)){accept()}
-                        }
-                        if(stage=="outgoing" || stage=="connecting") Action("연결 취소",fill=Panel){stopCall()}
-                        if(stage=="in_call") Row(horizontalArrangement=Arrangement.spacedBy(14.dp)) {
-                            Action(if(muted)"마이크 켜기" else "음소거",Modifier.weight(1f),Panel){mute()}
-                            Action("통화 종료",Modifier.weight(1f),Red){stopCall()}
-                        }
-                        if(stage=="offline") Action("서버 다시 연결",fill=Panel){connect()}
+                        CallControls(compact)
                     }
                 }
-                Row(Modifier.fillMaxWidth().background(Panel,RoundedCornerShape(14.dp)).padding(horizontal=18.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
-                    Text(if(listening)"듣고 있습니다…" else voiceStatus,color=Soft,fontSize=15.sp,modifier=Modifier.weight(1f))
-                    TextButton(onClick={listen()}) {Text("음성 입력",color=Mint,fontSize=18.sp)}
+                Row(Modifier.fillMaxWidth().background(Panel,RoundedCornerShape(14.dp)).padding(horizontal=if(compact) 12.dp else 18.dp,vertical=if(compact) 0.dp else 8.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Text(if(listening)"듣고 있습니다…" else voiceStatus,color=Soft,fontSize=if(compact) 11.sp else 15.sp,modifier=Modifier.weight(1f))
+                    TextButton(onClick={listen()}) {Text("음성 입력",color=Mint,fontSize=if(compact) 14.sp else 18.sp)}
                 }
-                Text("$ttsStatus · FusedLocation / Gleo 미연동 · 정지된 개발 환경 시연",color=Soft.copy(alpha=.7f),fontSize=12.sp)
+                Text(if(compact) "$ttsStatus · DEMO · 가상 위치 / 실제 음성" else "$ttsStatus · FusedLocation / Gleo 미연동 · 정지된 개발 환경 시연",color=Soft.copy(alpha=.7f),fontSize=if(compact) 9.sp else 12.sp,maxLines=1)
             }
         }
         if(settings) SettingsDialog()
     }
-    @Composable private fun Action(label:String,modifier:Modifier=Modifier,fill:Color=Mint,onClick:()->Unit) {
-        Button(onClick=onClick,modifier=modifier.heightIn(min=68.dp).fillMaxWidth(),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=fill,contentColor=if(fill==Mint)Bg else Color.White)) { Text(label,fontSize=24.sp,fontWeight=FontWeight.SemiBold) }
+    @Composable private fun CallControls(compact:Boolean) {
+        if(stage in listOf("ready","ended")) {
+            Action("주변 차량 연결",compact=compact){requestCall()}
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                Switch(checked=available,onCheckedChange={send("available"){e->e.put("value",it)}})
+                Spacer(Modifier.width(12.dp));Text("대화 요청 받기",color=Soft,fontSize=if(compact) 14.sp else 18.sp)
+            }
+        }
+        if(stage=="incoming") Row(horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+            Action("거절",Modifier.weight(1f),Panel,compact){send("decline")}
+            Action("연결",Modifier.weight(1f),compact=compact){accept()}
+        }
+        if(stage=="outgoing" || stage=="connecting") Action("연결 취소",fill=Panel,compact=compact){stopCall()}
+        if(stage=="in_call") Row(horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+            Action(if(muted)"마이크 켜기" else "음소거",Modifier.weight(1f),Panel,compact){mute()}
+            Action("통화 종료",Modifier.weight(1f),Red,compact){stopCall()}
+        }
+        if(stage=="offline") Action("서버 다시 연결",fill=Panel,compact=compact){connect()}
     }
-    @Composable private fun Radar(state:String) {
-        Canvas(Modifier.fillMaxWidth().aspectRatio(1f)) {
+    @Composable private fun Action(label:String,modifier:Modifier=Modifier,fill:Color=Mint,compact:Boolean=false,onClick:()->Unit) {
+        Button(onClick=onClick,modifier=modifier.heightIn(min=if(compact) 48.dp else 68.dp).fillMaxWidth(),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=fill,contentColor=if(fill==Mint)Bg else Color.White)) { Text(label,fontSize=if(compact) 18.sp else 24.sp,fontWeight=FontWeight.SemiBold) }
+    }
+    @Composable private fun Radar(state:String,modifier:Modifier=Modifier.fillMaxWidth()) {
+        Canvas(modifier.aspectRatio(1f)) {
             val center=Offset(size.width/2,size.height/2);val r=size.minDimension*.35f
             drawCircle(Color(0xFF304454),r,center,style=Stroke(2.dp.toPx()));drawCircle(Color(0xFF304454),r*.7f,center,style=Stroke(2.dp.toPx()))
             drawCircle(Color(0xFF183D3C),r*.44f,center)
@@ -320,7 +352,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onDestroy() {
         closed=true;reconnect?.cancel();heartbeat?.cancel();callId?.let{send("end")};clearMedia();socket?.close(1000,"app closed")
-        recognizer?.destroy();pleosTts?.release();androidTts?.shutdown();client.dispatcher.executorService.shutdown()
+        recognizer?.destroy();runCatching { pleosTts?.release() };androidTts?.shutdown();client.dispatcher.executorService.shutdown()
         super.onDestroy()
     }
 }
