@@ -1,0 +1,18 @@
+{
+  "testedAt": "2026-11-15T06:41:04.472Z",
+  "scope": "Two browser clients; synthetic microphone source",
+  "consentGate": true,
+  "mute": true,
+  "remoteEnd": true,
+  "bidirectionalRtp": [
+    {
+      "bytes": 17775,
+      "packets": 112
+    },
+    {
+      "bytes": 17403,
+      "packets": 112
+    }
+  ],
+  "reportFormat": "Public summary; runtime track identifiers and raw RTP metadata omitted"
+}
