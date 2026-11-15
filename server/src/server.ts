@@ -42,7 +42,7 @@ wss.on('connection',(socket,req) => {
     let data: any;
     try { data=JSON.parse(raw.toString()); } catch { socket.close(1007,'Invalid JSON'); return; }
     if (data?.type === 'join' && !session) {
-      if (!(data.profile in PROFILES) || engine.sessions.size >= 30) { socket.close(1008,'Invalid profile'); return; }
+      if (!Object.hasOwn(PROFILES,String(data.profile)) || engine.sessions.size >= 30) { socket.close(1008,'Invalid profile'); return; }
       session=engine.join(data.profile as Profile,send); return;
     }
     if (!session || !engine.sessions.has(session.id)) { socket.close(1008,'Join required'); return; }
