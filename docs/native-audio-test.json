@@ -1,0 +1,64 @@
+{
+  "testedAt": "2026-11-15T06:46:46.361Z",
+  "environment": "Pleos Connect 2.1.0 API 34 ARM64 / 2560x1440",
+  "browserMicrophone": "Chromium synthetic microphone",
+  "nativeMicrophone": "Emulator microphone",
+  "outgoingStats": {
+    "callId": "8936d40e-b453-4c95-8ce5-c32d324c9a4a",
+    "receivedAudioBytes": 16781,
+    "sentAudioBytes": 2034,
+    "seconds": 3,
+    "muted": false,
+    "pleosTtsReady": true
+  },
+  "incomingStats": {
+    "callId": "dd46292f-79d1-4c5f-ab8a-e1ba088724f6",
+    "receivedAudioBytes": 7893,
+    "sentAudioBytes": 1770,
+    "seconds": 2,
+    "muted": false,
+    "pleosTtsReady": true
+  },
+  "consentGate": true,
+  "muteObservedRemotely": true,
+  "endFromBothSides": true,
+  "pleosTtsConnected": true,
+  "timeline": [
+    {
+      "at": 0,
+      "label": "Pleos Connect 차량 화면에서 실행되는 텔레CAR시"
+    },
+    {
+      "at": 1.501,
+      "label": "같은 도로와 방향의 주변 참여자에게 연결 요청"
+    },
+    {
+      "at": 7.929,
+      "label": "상대 테스트 클라이언트가 수락한 후 음성 연결"
+    },
+    {
+      "at": 11.16,
+      "label": "양방향 음성 연결 완료 · 실제 오디오 패킷 송수신 검증"
+    },
+    {
+      "at": 13.535,
+      "label": "차량 앱에서 음소거 · 상대 클라이언트에서도 확인"
+    },
+    {
+      "at": 19.726,
+      "label": "상대방이 종료하면 차량 앱의 음성 연결도 종료"
+    },
+    {
+      "at": 23.439,
+      "label": "상대 클라이언트가 요청 · 차량 앱에서 수신하고 수락"
+    },
+    {
+      "at": 29.505,
+      "label": "차량 앱에서 수락한 통화도 실제 음성 송수신"
+    },
+    {
+      "at": 35.755,
+      "label": "차량 앱에서 통화 종료 · 양쪽의 연결 정리"
+    }
+  ]
+}
