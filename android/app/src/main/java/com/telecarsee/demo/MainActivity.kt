@@ -172,7 +172,9 @@ class MainActivity : ComponentActivity() {
         r.getPublisherRTCStats { report ->
             sentBytes=report.statsMap.values.filter { it.type=="outbound-rtp" && (it.members["kind"]=="audio" || it.members["mediaType"]=="audio") }.sumOf { (it.members["bytesSent"] as? Number)?.toLong() ?: 0 }
             // Only packet counters; no voice content or location is written.
-            runCatching { java.io.File(getExternalFilesDir(null),"media-metrics.json").writeText(JSONObject().put("receivedAudioBytes",receivedBytes).put("sentAudioBytes",sentBytes).put("seconds",seconds).put("muted",muted).put("pleosTtsReady",ttsReady).toString()) }
+            val metrics=JSONObject().put("callId",callId).put("receivedAudioBytes",receivedBytes).put("sentAudioBytes",sentBytes).put("seconds",seconds).put("muted",muted).put("pleosTtsReady",ttsReady).toString()
+            android.util.Log.i("TelecarStats",metrics)
+            runCatching { java.io.File(getExternalFilesDir(null),"media-metrics.json").writeText(metrics) }
         }
     }
     private fun stopCall() { send("end");clearMedia();callId=null;stage="ended";message="대화가 종료됐습니다." }

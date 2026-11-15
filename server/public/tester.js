@@ -67,7 +67,7 @@ function connect(){
   const e=JSON.parse(data);
   if(e.type==='hello'){state='ready';render('같은 도로·방향의 참여자에게 연결을 요청하세요.');}
   if(e.type==='snapshot'){nearby=e.nearby;$('available').checked=e.available;render();}
-  if(['incoming','outgoing','connecting'].includes(e.type)){state=e.type;callId=e.callId;render(state==='incoming'?'수락하면 실제 목소리가 전달됩니다.':'상대방의 수락 후 음성이 연결됩니다.');}
+  if(['incoming','outgoing','connecting'].includes(e.type)){state=e.type;callId=e.callId;metrics.callId=e.callId;render(state==='incoming'?'수락하면 실제 목소리가 전달됩니다.':'상대방의 수락 후 음성이 연결됩니다.');}
   if(e.type==='media')void media(e);
   if(e.type==='active'){state='in_call';connectedAt=Date.now();render('00:00 · 실제 목소리가 전달되고 있습니다.');timer=setInterval(()=>{const t=Math.floor((Date.now()-connectedAt)/1000);$('message').textContent=`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')} · 실제 목소리가 전달되고 있습니다.`;},1000);}
   if(e.type==='ended'){void clearMedia();callId=null;state='ended';render(e.message);}
