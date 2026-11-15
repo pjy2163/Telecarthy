@@ -46,15 +46,10 @@ npm test
 node scripts/init-local-env.mjs
 ```
 
-별도 터미널에서 LiveKit을 아래와 같이 실행할 수 있습니다. 로컬 컴퓨터의 루프백 주소로 제한한 개발용 설정입니다.
+별도 터미널에서 LiveKit을 아래와 같이 실행할 수 있습니다. 로컬 컴퓨터의 루프백 주소로 제한한 개발용 설정이며, 생성한 로컬 키 파일을 읽습니다.
 
 ```bash
-docker run --rm --name telecarthy-livekit \
-  -p 127.0.0.1:7880:7880 \
-  -p 127.0.0.1:7881:7881 \
-  -p 127.0.0.1:7882:7882/udp \
-  -v "$PWD/.local/livekit.yaml:/etc/livekit.yaml:ro" \
-  livekit/livekit-server:v1.13.11 --config /etc/livekit.yaml
+docker compose up -d media
 ```
 
 다른 터미널에서 제어 서버를 시작합니다.
@@ -63,6 +58,8 @@ docker run --rm --name telecarthy-livekit \
 cd server
 npm start
 ```
+
+`sh scripts/start-demo.sh`로 로컬 키 확인, LiveKit 시작과 제어 서버 실행을 순서대로 수행할 수도 있습니다. 다른 데모 서버가 이미 같은 포트를 사용하고 있으면 먼저 해당 실행을 종료하거나 별도 포트를 구성해야 합니다.
 
 상태 확인 주소는 `http://127.0.0.1:8787/health`, WebSocket 주소는 `ws://127.0.0.1:8787/ws`입니다. 브라우저에서 `http://127.0.0.1:8787/?profile=B`를 열면 상대 차량 클라이언트를 사용할 수 있습니다. A·B는 같은 범위·방향, C는 범위 밖, D는 반대 방향의 테스트 프로필입니다.
 
@@ -79,7 +76,15 @@ cd android
 
 서명한 release APK를 만들 때는 `android/.env.example`의 변수 이름을 참고해 `TELECAR_KEYSTORE_PATH`, `TELECAR_KEYSTORE_PASSWORD`, `TELECAR_KEY_ALIAS`, `TELECAR_KEY_PASSWORD`를 셸 환경변수로 설정한 뒤 `./gradlew :app:assembleRelease`를 실행합니다. Gradle은 예시 파일을 자동으로 읽지 않습니다. 기존 서명 키나 비밀번호는 저장소에 포함하지 않습니다.
 
+저장소 루트에서 `sh scripts/build-apk.sh`를 실행하면 같은 환경변수를 사용해 서명 키를 준비하고 release APK를 `apk/telecarsee_demo_release.apk`로 복사합니다. 비밀번호는 명령행 값 대신 환경변수로 keytool에 전달합니다.
+
 Pleos Connect 에뮬레이터·SDK의 제공 및 권한 조건을 확인해야 하며, 현재 데모는 정지된 개발 환경에서 검증하는 용도입니다. 주행 중 사용을 위해 플랫폼의 제한을 해제하는 절차는 제공하지 않습니다.
+
+## 통화 검증 도구
+
+`scripts/browser-audio-test.mjs`와 `scripts/native-audio-test.mjs`는 실행 중인 로컬 데모에 접속해 통화 흐름과 미디어 통계를 확인하는 도구입니다. Chrome 실행 경로는 `CHROME_PATH`, Android 장치는 `ANDROID_SERIAL`, adb 실행 경로는 `ADB` 또는 `ANDROID_HOME`으로 지정할 수 있습니다.
+
+이 도구들은 현재 개발·검증 중이며, 단위 테스트 8개의 통과와 종단 간 통화 검증 완료를 구분합니다. 특히 통화 통계 파일의 현재 세션 확인은 [개발 방향 검토](docs/direction-review.md)에 기록한 확인 항목입니다.
 
 ## 키와 로컬 파일 관리
 
