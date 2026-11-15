@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>텔레CAR시 상대 차량 테스트</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+  <main>
+    <header><a class="brand" href="/">텔레<span>CAR</span>시</a><span class="badge">LOCAL DEMO</span><label>차량 <select id="profile"><option>A</option><option selected>B</option><option>C</option><option>D</option></select></label></header>
+    <div class="disclosure">상대 차량 테스트 클라이언트 · 가상 위치 / 실제 음성 · Pleos 차량 화면은 별도 APK에서 실행됩니다.</div>
+    <section class="car-screen">
+      <div class="radar" id="radar"><div class="ring inner"></div><div class="ring outer"></div><div class="vehicle">▰</div></div>
+      <article>
+        <div class="eyebrow" id="state">서버 연결 중</div>
+        <h1 id="title">주변 운전자와 연결</h1>
+        <p id="message">같은 도로·방향의 참여자를 찾습니다.</p>
+        <div class="nearby" id="nearby">가상도로 A · 북쪽 방향 · 반경 500m</div>
+        <div class="actions" id="actions"></div>
+        <label class="available"><input id="available" type="checkbox" checked>대화 요청 받기</label>
+      </article>
+    </section>
+    <footer><span id="connection">오프라인</span><span>음성 녹음·저장 없음 · 마이크는 수락 후 연결</span></footer>
+    <details><summary>시연 방법과 구현 범위</summary><p>서버를 실행하고 APK와 이 페이지를 함께 여세요. 가상 차량 A·B는 반경 안, C는 범위 밖, D는 반대 방향입니다. 연결 요청과 수락 후 양방향 음성 통화를 확인하고 음소거·종료를 사용하세요. 위치는 고정된 테스트 좌표입니다. FusedLocation·Gleo·주행 정책 승인은 미완료이며 실제 운전 중 사용을 검증한 앱이 아닙니다. 두 기기를 같은 장소에서 테스트할 때는 에코를 줄이기 위해 이어폰을 사용하세요.</p></details>
+  </main>
+  <div id="remote-audio"></div>
+  <script src="/livekit.js"></script><script src="/tester.js"></script>
+</body></html>
