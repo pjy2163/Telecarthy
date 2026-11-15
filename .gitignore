@@ -1,0 +1,23 @@
+# Local credentials and signing material
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+.npmrc
+
+# Local runtimes, emulator images, build output and caches
+.local/
+node_modules/
+.gradle/
+build/
+local.properties
+*.log
+*.hprof
+.DS_Store
+.idea/
+.vscode/
