@@ -144,7 +144,10 @@ class MainActivity : ComponentActivity() {
                 if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED) throw IllegalStateException("microphone permission")
                 androidTts?.stop();pleosTts?.stop()
                 if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED) throw IllegalStateException("audio focus denied")
-                val r=LiveKit.create(applicationContext);room=r
+                val r=LiveKit.create(applicationContext)
+                // The app owns the focus request; a second SDK request would revoke it.
+                r.audioSwitchHandler?.manageAudioFocus=false
+                room=r
                 eventJob=launch { r.events.collect { event ->
                     if(event is RoomEvent.Disconnected && callId==id) { send("media_error"); clearMedia(); stage="ended"; message="음성 연결이 끊어졌습니다." }
                 } }
@@ -153,7 +156,7 @@ class MainActivity : ComponentActivity() {
                 r.localParticipant.setMicrophoneEnabled(true)
                 muted=false;send("connected")
             } catch(c:CancellationException) { throw c }
-            catch(_:Exception) { send("media_error"); clearMedia(); stage="ended"; message="마이크와 음성 서버 연결을 확인해주세요." }
+            catch(error:Exception) { android.util.Log.e("TelecarDemo","Media setup failed: ${error.javaClass.simpleName}");send("media_error"); clearMedia(); stage="ended"; message="마이크와 음성 서버 연결을 확인해주세요." }
         }
     }
     private fun clearMedia() {
