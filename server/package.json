@@ -1,0 +1,25 @@
+{
+  "name": "telecarsee-demo-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env --import tsx src/server.ts",
+    "test": "node --import tsx --test test/*.test.ts",
+    "check": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.9.0"
+  },
+  "dependencies": {
+    "livekit-client": "2.15.6",
+    "livekit-server-sdk": "2.15.0",
+    "ws": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.30",
+    "@types/ws": "8.18.1",
+    "tsx": "4.20.3",
+    "typescript": "5.8.3"
+  }
+}
